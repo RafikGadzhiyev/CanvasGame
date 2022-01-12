@@ -16,28 +16,39 @@ const CENTERY = HEIGHT / 2;
 
 class Game {
     constructor() {
-        this.startPlayer = 0;
         this.platformWidth = 10;
         this.platformHeight = 100;
-        this.playersPosition = [
-            [0, CENTERY - this.platformHeight / 2],
-            [WIDTH - this.platformWidth, CENTERY - this.platformHeight / 2]
-        ];
-        this.playersScore = [0, 0];
-        this.ballPosition = [CENTERX, CENTERY];
-        this.ballColor = 'white';
-        this.platformsColor = 'gray';
-        this.backgroundColor = 'gray';
-        this.ballSize = 10;
-        this.platformSpeed = 10;
-        this.botSpeed = 10;
+        this.players = [{
+                score: 0,
+                x: 0,
+                y: (CENTERY - this.platformHeight / 2),
+                speed: 10,
+                color: 'gray'
+            },
+            {
+                score: 0,
+                x: (WIDTH - this.platformWidth),
+                y: (CENTERY - this.platformHeight / 2),
+                speed: 1,
+                acceleration: 0.0008,
+                startedVelocity: 1,
+                color: 'gray'
+            }
+        ]
+        this.ball = {
+            x: CENTERX,
+            y: CENTERY,
+            color: 'white',
+            size: 10,
+            startedVelocity: 1,
+            velocity: 1,
+            acceleration: 0.001
+        }
         this.botDirection = -1;
+        this.startPlayer = Math.random() < 0.6 ? 0 : 1;
         this.gameStartedTime;
-        this.ballVelocity = 1;
-        this.startedVelocity = 1;
-        this.ballAcceleration = 0.001;
-        this.dx = -1;
-        this.dy = -1;
+        this.dx = Math.random() < 0.5 ? 1 : -1;
+        this.dy = Math.random() < 0.5 ? 1 : -1;
         this.ballAnimationID;
         this.botAnimationID;
     }
@@ -45,8 +56,8 @@ class Game {
     init() {
         ctx.clearRect(0, 0, WIDTH, HEIGHT);
         this.drawBackground();
-        this.playersPosition.forEach(item => {
-            this.drawPlatform(item[0], item[1])
+        this.players.forEach(item => {
+            this.drawPlatform(item.x, item.y)
         })
         this.drawScore();
         this.drawBall();
@@ -68,76 +79,96 @@ class Game {
     }
 
     setBallSpeed() {
-        this.ballVelocity += this.ballAcceleration;
-        if ((this.ballPosition[1] - this.ballSize) <= 0) {
+        this.ball.velocity += this.ball.acceleration;
+        if ((this.ball.y - this.ball.size) <= 0) {
             this.dy = 1;
-        } else if (this.ballPosition[1] >= (HEIGHT - this.ballSize * 2)) {
+        } else if (this.ball.y >= (HEIGHT - this.ball.size * 2)) {
             this.dy = -1;
         }
 
         this.ballCollision();
 
-        this.ballPosition[0] += this.ballVelocity * this.dx;
-        this.ballPosition[1] += this.ballVelocity * this.dy;
+        this.ball.x += this.ball.velocity * this.dx;
+        this.ball.y += this.ball.velocity * this.dy;
         this.ballAnimationID = requestAnimationFrame(this.setBallSpeed.bind(this));
     }
 
-    checkWin(){
-        if(this.playersScore[0] === 10){
+    checkWin() {
+        if (this.players[0].score === 10) {
             alert('Player has won!');
-            this.resetGame();            
-        }else if(this.playersScore[1] === 10){
+            this.resetGame();
+        } else if (this.players[1].score === 10) {
             alert('Bot has won!');
             this.resetGame();
         }
         this.resetBallSpeed();
     }
 
-    resetGame(){
+    resetGame() {
         // tmp solution that need to solve
         window.location.reload(true);
-        this.playersScore = [0, 0];
+        this.players[0].score = 0;
+        this.players[1].score = 0;
         cancelAnimationFrame(this.ballAnimationID);
         cancelAnimationFrame(this.botAnimationID);
     }
 
-    resetBallSpeed(){
-        this.ballVelocity = this.startedVelocity;
-        this.ballPosition = [CENTERX, CENTERY];
+    resetBallSpeed() {
+        this.ball.velocity = this.ball.startedVelocity;
+        this.ball.x = CENTERX;
+        this.ball.y = CENTERY;
+    }
+
+    resetBotSpeed(){
+        this.players[1].speed = this.players[1].startedVelocity
     }
 
     ballCollision() {
-        let [left, right] = this.playersPosition;
+        let [left, right] = this.players;
         if (
-            (this.ballPosition[0] - this.ballSize <= this.platformWidth) &&
-            (parseInt(this.ballPosition[1] - this.ballSize) <= parseInt(left[1] + this.platformHeight) &&
-                parseInt(this.ballPosition[1] - this.ballSize) >= parseInt(left[1]))
+            (this.ball.x - this.ball.size <= this.platformWidth) &&
+            (parseInt(this.ball.y - this.ball.size) <= parseInt(left.y + this.platformHeight) &&
+                parseInt(this.ball.y - this.ball.size) >= parseInt(left.y))
         ) {
             this.dx = 1;
         } else if (
-            (this.ballPosition[0] + this.ballSize >= WIDTH - this.platformWidth) && 
-            (parseInt(this.ballPosition[1] + this.ballSize) <= parseInt(right[1] + this.platformHeight) &&
-                parseInt(this.ballPosition[1] + this.ballSize) >= parseInt(right[1]))
+            (this.ball.x + this.ball.size >= WIDTH - this.platformWidth) &&
+            (parseInt(this.ball.y + this.ball.size) <= parseInt(right.y + this.platformHeight) &&
+                parseInt(this.ball.y + this.ball.size) >= parseInt(right.y))
         ) {
             this.dx = -1;
-        }else if(this.ballPosition[0] - this.ballSize < left[0]){
-            this.playersScore[1]++;
+        } else if (this.ball.x - this.ball.size < left.x) {
+            this.players[1].score++;
             this.checkWin();
             this.resetBallSpeed();
-        }else if(this.ballPosition[0] + this.ballSize >= WIDTH){
-            this.playersScore[0]++;
+            this.getRandomSide();
+            this.resetBotSpeed();
+        } else if (this.ball.x + this.ball.size >= WIDTH) {
+            this.players[0].score++;
             this.checkWin();
+            this.resetBotSpeed();
+            this.getRandomSide();
             this.resetBallSpeed();
         }
     }
 
+    getRandomSide(){
+        this.dx = Math.random() < 0.5 ? 1 : -1;
+        this.dy = Math.random() < 0.5 ? 1 : -1;
+    }
+
     setBotSpeed() {
-        if (this.playersPosition[1][1] <= 0) {
+        if(this.players[1].y + this.platformHeight / 2 < this.ball.y){
             this.botDirection = 1;
-        } else if (this.playersPosition[1][1] >= HEIGHT - this.platformHeight) {
+        }
+        else if(this.players[1].y + this.platformHeight / 2 > this.ball.y){
             this.botDirection = -1;
         }
-        this.playersPosition[1][1] += this.botSpeed * this.botDirection;
+        this.players[1].speed += this.players[1].acceleration;
+        if(this.players[1].speed >= 11){
+            this.players[1].speed = 11;
+        }
+        this.players[1].y += this.players[1].speed * this.botDirection ;
         this.botAnimationID = requestAnimationFrame(this.setBotSpeed.bind(this))
     }
 
@@ -145,19 +176,25 @@ class Game {
         switch (key) {
             case 'w':
             case 'ArrowUp':
-                this.playersPosition[0][1] -= this.platformSpeed;
+                this.players[0].y -= this.players[0].speed;
                 break;
             case 's':
             case 'ArrowDown':
-                this.playersPosition[0][1] += this.platformSpeed;
+                this.players[0].y += this.players[0].speed;
                 break;
+        }
+        if(this.players[0].y < 0){
+            this.players[0].y = 0;
+        }
+        else if(this.players[0].y + this.platformHeight > HEIGHT){
+            this.players[0].y = HEIGHT - this.platformHeight
         }
     }
 
     drawBall() {
-        ctx.fillStyle = this.ballColor;
+        ctx.fillStyle = this.ball.color;
         ctx.beginPath();
-        ctx.arc(this.ballPosition[0], this.ballPosition[1], this.ballSize, 0, 2 * Math.PI)
+        ctx.arc(this.ball.x, this.ball.y, this.ball.size, 0, 2 * Math.PI)
         ctx.fill();
         ctx.closePath();
     }
@@ -165,7 +202,7 @@ class Game {
     drawScore() {
         ctx.fillStyle = 'white';
         ctx.font = '30px monospace'
-        ctx.fillText(`${this.playersScore[0]}   ${this.playersScore[1]}`, CENTERX - 40, 50)
+        ctx.fillText(`${this.players[0].score}   ${this.players[1].score}`, CENTERX - 40, 50)
     }
 
     drawBackground() {
@@ -179,7 +216,7 @@ class Game {
     }
 
     drawPlatform(x, y) {
-        ctx.fillStyle = this.platformsColor;
+        ctx.fillStyle = this.players[0].color;
         ctx.fillRect(x, y, this.platformWidth, this.platformHeight);
     }
 
